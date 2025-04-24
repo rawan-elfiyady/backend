@@ -1,79 +1,32 @@
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const config = require("../config");
-const authMiddleware = require("./Middleware/authMiddleware");
-const supabase = require("./supabaseClient");
-
+const express = require('express');
 const router = express.Router();
+const AuthServices = require("../Services/AuthServices");
 
-const users = [];
-
-router.post('/register', async (req, res) => {
-    const { username, password, role } = req.body;
-
-    if(!username || !password || !role){
-        return res.status(400).send({
-            message: 'Username, password, and role are required'
-        })
+// src/controllers/AuthController.js
+router.post('/register', async (req, res, next) => {
+    const { role, email, password, name } = req.body;
+    try {
+        let user;
+        switch (role) {
+            case 'admin':
+                user = await AuthServices.registerAdmin({ email, password, name });
+                break;
+            case 'pharmacist':
+                user = await AuthServices.registerPharmacist({ email, password, name });
+                break;
+            case 'patient':
+                user = await AuthServices.registerPatient({ email, password, name });
+                break;
+            default:
+                const err = new Error(`Invalid role: ${role}`);
+                err.status = 400;
+                throw err;
+        }
+        res.status(201).json({
+        });
+    } catch (err) {
+        next(err);
     }
-
-    if(role == "Patient"){
-    const  existingPatient = users.find(user => username.username === username);
-    if (existingUser){
-        return res.status(400).send({
-            message: 'User is already registered!'
-        })
-    }
-
-    const hashedPassword= await bcrypt.hash(password, 10);
-     users.push({
-        username: username,
-        password: hashedPassword
-     })
-    }
-     res.status(201).send({
-        message: 'User registered successfully!'
-     });
 });
 
-router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    if(!username || !password){
-        return res.status(400).send({
-            message: 'Username and password is required'
-        })
-    }
-
-    const existingUser = users.find( user => user.username === username);
-    if (!existingUser){
-        return res.status(400).send({
-            message: 'User is not registered!'
-        })
-    }
-
-    const isValidPassword = await bcrypt.compare(password, existingUser.password);
-    if (!isValidPassword) {
-        return res.status(400).send({
-            message: 'Password is invalid'
-        })
-    }
-
-    const token = jwt.sign({
-        username: existingUser.username
-    },
-        config.secret, 
-    {
-        expiresIn: '1h'
-    });
-    res.send({token});
-});
-
-router.get('/test', authMiddleware, async (req, res) => {
-    res.send({
-        message: 'this api endpoint is protected by jwt'
-    })
-
-})
 module.exports = router;
