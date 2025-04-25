@@ -4,6 +4,9 @@ const AdminsRepo = require("../Repositories/AdminRepository");
 const PatientsRepo = require("../Repositories/PatientRepository");
 const PharmacistsRepo = require("../Repositories/PharmacistRepository");
 const supabase = require("../Config/supabaseClient");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = require("../Config/Jwt.config");
+const bcrypt = require("bcrypt");
 
 // Helpers to ensure email is not already taken
 async function ensureAdminEmailNotTaken(email) {
@@ -33,105 +36,220 @@ async function ensurePatientEmailNotTaken(email) {
   }
 }
 
-// Register Admin
-async function registerAdmin({ email, password, name }) {
-  await ensureAdminEmailNotTaken(email); // Ensure email is not taken
+async function registerAdmin({ email, password, username, role }) {
+  // 1. Check for existing
+  await ensureAdminEmailNotTaken(email);
 
-  // Create the user in Supabase Auth
-  const { user, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: "admin", // Role metadata for the user
-        name,
-      },
-    },
-  });
+  // 2. Hash password
+  const password_hash = await bcrypt.hash(password, 12);
 
-  if (error) {
-    console.error("Error creating user in Supabase:", error.message);
-    throw new Error(`Error creating user: ${error.message}`);
-  }
+  // 3. Insert into admins
+  const admin = { email, password_hash, username, role };
 
-  // Insert user data into the 'admins' table in the database
-  const { data, error: dbErr } = await supabase
-    .from("admins")
-    .insert([{ email, username: name, password_hash: password, role: "admin" }]); // Insert the necessary columns
+  await AdminsRepo.createAdmin(admin);
 
-  if (dbErr) {
-    console.error("Error inserting user into database:", dbErr.message);
-    throw new Error(`Error inserting user into database: ${dbErr.message}`);
-  }
+  const data = await AdminsRepo.getAdminByEmail(email);
 
-  return user;
+  // 4. Return minimal admin
+  return {
+    id: data.id,
+    email: data.email,
+    role: data.role,
+    username: data.username,
+  };
 }
 
 // Register Pharmacist
-async function registerPharmacist({ email, password, name }) {
-  await ensurePharmacistEmailNotTaken(email); // Ensure email is not taken
+async function registerPharmacist({ email, password, username, role }) {
+  // 1. Check for existing
+  await ensurePharmacistEmailNotTaken(email);
 
-  // Create the user in Supabase Auth
-  const { user, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: "pharmacist", // Role metadata for the user
-        name,
-      },
-    },
-  });
+  // 2. Hash password
+  const password_hash = await bcrypt.hash(password, 12);
 
-  if (error) {
-    console.error("Error creating user in Supabase:", error.message);
-    throw new Error(`Error creating user: ${error.message}`);
-  }
+  // 3. Insert into pharmacists
+  const pharmacist = { email, password_hash, username, role };
 
-  // Insert user data into the 'pharmacists' table in the database
-  const { data, error: dbErr } = await supabase
-    .from("pharmacists")
-    .insert([{ email, username: name, password_hash: password, role: "pharmacist" }]); // Insert the necessary columns
+  await PharmacistsRepo.createpharmacists(pharmacist);
 
-  if (dbErr) {
-    console.error("Error inserting user into database:", dbErr.message);
-    throw new Error(`Error inserting user into database: ${dbErr.message}`);
-  }
+  const data = await PharmacistsRepo.getPharmacistByEmail(email);
 
-  return user;
+  // 4. Return minimal pharmacist
+  return {
+    id: data.id,
+    email: data.email,
+    role: data.role,
+    username: data.username,
+  };
 }
 
 // Register Patient
-async function registerPatient({ email, password, name }) {
-  await ensurePatientEmailNotTaken(email); // Ensure email is not taken
+async function registerPatient({ email, password, username, role }) {
+  // 1. Check for existing
+  await ensurePatientEmailNotTaken(email);
 
-  // Create the user in Supabase Auth
-  const { user, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: "patient", // Role metadata for the user
-        name,
-      }
-    }
-  });
+  // 2. Hash password
+  const password_hash = await bcrypt.hash(password, 12);
 
-  // Insert user data into the 'patients' table in the database
-  const { data, error: dbErr } = await supabase
-    .from("patients")
-    .insert([{ email, username: name, password_hash: password, role: "patient" }]); // Insert the necessary columns
+  // 3. Insert into patients
+  const patient = { email, password_hash, username, role };
 
-  if (dbErr) {
-    console.error("Error inserting user into database:", dbErr.message);
-    throw new Error(`Error inserting user into database: ${dbErr.message}`);
+  await PatientsRepo.createPatient(patient);
+
+  const data = await PatientsRepo.getPatientByEmail(email);
+
+  // 4. Return minimal pharmacist
+  return {
+    id: data.id,
+    email: data.email,
+    role: data.role,
+    username: data.username,
+  };
+}
+
+// async function loginUser({ email, password, role }) {
+
+//     // Log in with Supabase Auth (correct method for email/password login)
+//     const { user, error } = await supabase.auth.signInWithPassword({
+//         email,
+//         password,
+//     });
+
+//     // Check if there was an error during login
+//     if (error) {
+//         console.error("Error logging in user:", error.message);
+//         throw new Error(`Error logging in: ${error.message}`);
+//     }
+
+//     // Ensure user data is available and contains id
+//     if (!user || !user.id) {
+//         console.error("User object is undefined or lacks 'id'.");
+//         throw new Error("User login failed, 'user' object is undefined or lacks 'id'.");
+//     }
+
+//     // Generate JWT token
+//     const token = jwt.sign(
+//         { id: user.id, email: user.email, role },  // Payload
+//         JWT_SECRET,                                // Secret key
+//         { expiresIn: '1h' }                        // Expiration time
+//     );
+
+//     // Return the token and user details
+//     return { token, user: { id: user.id, email, role } };
+// }
+
+async function loginAdmin({ email, password }) {
+  const admin = await AdminsRepo.getAdminByEmail(email);
+  console.log("admin: ", admin)
+
+  if (!admin) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
   }
 
-  return user;
+  // 2. Compare hashes
+  const match = await bcrypt.compare(password, admin.password_hash);
+  if (!match) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+
+  // 3. Generate JWT
+  const jwt = require("jsonwebtoken");
+  const token = jwt.sign(
+    { id: admin.id, email: admin.email, role: admin.role },
+    JWT_SECRET.secret,
+    { expiresIn: "1h" }
+  );
+
+  return {
+    token,
+    admin: {
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+      username: admin.username,
+    },
+  };
+}
+async function loginPharmacist({ email, password }) {
+  const pharmacist = await PharmacistsRepo.getPharmacistByEmail(email);
+
+  if (!pharmacist) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+
+  // 2. Compare hashes
+  const match = await bcrypt.compare(password, pharmacist.password_hash);
+  if (!match) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+
+  // 3. Generate JWT
+  const jwt = require("jsonwebtoken");
+  const token = jwt.sign(
+    { id: pharmacist.id, email: pharmacist.email, role: pharmacist.role },
+    JWT_SECRET.secret,
+    { expiresIn: "1h" }
+  );
+
+  return {
+    token,
+    pharmacist: {
+      id: pharmacist.id,
+      email: pharmacist.email,
+      role: pharmacist.role,
+      username: pharmacist.username,
+    },
+  };
+}
+async function loginPatient({ email, password }) {
+  const patient = await PatientsRepo.getPatientByEmail(email);
+
+  if (!patient) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+
+  // 2. Compare hashes
+  const match = await bcrypt.compare(password, patient.password_hash);
+  if (!match) {
+    const err = new Error("Invalid credentials");
+    err.status = 401;
+    throw err;
+  }
+
+  // 3. Generate JWT
+  const jwt = require("jsonwebtoken");
+  const token = jwt.sign(
+    { id: patient.id, email: patient.email, role: patient.role },
+    JWT_SECRET.secret,
+    { expiresIn: "1h" }
+  );
+
+  return {
+    token,
+    patient: {
+      id: patient.id,
+      email: patient.email,
+      role: patient.role,
+      username: patient.username,
+    },
+  };
 }
 
 module.exports = {
   registerAdmin,
   registerPharmacist,
   registerPatient,
+  loginAdmin,
+  loginPharmacist,
+  loginPatient,
 };
