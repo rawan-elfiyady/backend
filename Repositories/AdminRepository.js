@@ -1,5 +1,8 @@
 const supabase = require("../Config/supabaseClient");
 
+// Admin Services
+
+// return all admins in db 
 async function getAdmins() {
   const { data, error } = await supabase.from("admins").select("*");
 
@@ -7,7 +10,7 @@ async function getAdmins() {
 
   return data;
 }
-
+// return a specific admin by id
 async function getAdminById(id) {
   const { data, error } = await supabase
     .from("admins")
@@ -19,6 +22,7 @@ async function getAdminById(id) {
 
   return data;
 }
+// return a specific admin by email
 async function getAdminByEmail(email) {
   const { data, error } = await supabase
     .from("admins")
@@ -31,6 +35,7 @@ async function getAdminByEmail(email) {
   return data;
 }
 
+// create admin (for register function)
 async function createAdmin(admin) {
   const { data, error } = await supabase
     .from("admins")
@@ -40,6 +45,21 @@ async function createAdmin(admin) {
   return data;
 }
 
+// update admin (update profile)
+
+async function updateAdmin(id, updates) {
+  const {data, error} = await supabase
+  .from("admins")
+  .update([updates])
+  .eq("id", id)
+  .single();
+
+  if(error) throw new Error(error.message);
+
+  return data;
+}
+
+// remove admin (delete account)
 async function removeAdmin(id) {
   const { error } = await supabase.from("admins").delete().eq("id", id);
   if (error) throw error;
@@ -50,5 +70,6 @@ module.exports = {
   getAdminById,
   getAdminByEmail,
   createAdmin,
+  updateAdmin,
   removeAdmin,
 };

@@ -107,37 +107,6 @@ async function registerPatient({ email, password, username, role }) {
   };
 }
 
-// async function loginUser({ email, password, role }) {
-
-//     // Log in with Supabase Auth (correct method for email/password login)
-//     const { user, error } = await supabase.auth.signInWithPassword({
-//         email,
-//         password,
-//     });
-
-//     // Check if there was an error during login
-//     if (error) {
-//         console.error("Error logging in user:", error.message);
-//         throw new Error(`Error logging in: ${error.message}`);
-//     }
-
-//     // Ensure user data is available and contains id
-//     if (!user || !user.id) {
-//         console.error("User object is undefined or lacks 'id'.");
-//         throw new Error("User login failed, 'user' object is undefined or lacks 'id'.");
-//     }
-
-//     // Generate JWT token
-//     const token = jwt.sign(
-//         { id: user.id, email: user.email, role },  // Payload
-//         JWT_SECRET,                                // Secret key
-//         { expiresIn: '1h' }                        // Expiration time
-//     );
-
-//     // Return the token and user details
-//     return { token, user: { id: user.id, email, role } };
-// }
-
 async function loginAdmin({ email, password }) {
   const admin = await AdminsRepo.getAdminByEmail(email);
   console.log("admin: ", admin)
